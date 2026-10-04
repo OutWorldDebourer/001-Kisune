@@ -1,0 +1,81 @@
+---
+/**
+ * Navegación — compacta y VISIBLE DESDE EL INICIO.
+ *
+ * La versión anterior se ocultaba sobre el héroe y aparecía al hacer scroll.
+ * En móvil eso costaba altura útil justo cuando más hace falta, y además
+ * obligaba a decidir si el nav era "compacto" o "completo" según la posición
+ * del scroll. Aquí no hay dos estados: hay uno.
+ *
+ * Tres cosas y ninguna más: la marca (enlazada arriba), las categorías, y el
+ * acceso al pedido CON CONTADOR. El contador lo gobierna el controlador; el
+ * nodo existe siempre y su visibilidad la decide el estado, nunca el build.
+ */
+
+const categorias = [
+  { id: 'makis', label: 'Makis' },
+  { id: 'especiales', label: 'Especiales' },
+  { id: 'bebidas', label: 'Bebidas' },
+];
+---
+
+<nav class="nav-kitsune fixed inset-x-0 top-0 z-40" aria-label="Secciones y pedido">
+  {/* Medido a 390 px: con `text-sm` y `px-3` las tres categorías + marca + botón
+      no cabían y "Bebidas" quedaba fuera de pantalla (ver la captura de la
+      primera versión). Con `text-xs`/`px-2` por debajo de 640 px entran las
+      tres, y el desplazamiento horizontal sigue ahí como red de seguridad para
+      320 px. Un enlace que no se ve es una sección que no existe. */}
+  <div class="nav-fila mx-auto flex max-w-7xl items-center gap-1.5 px-3 py-2 sm:gap-2 sm:px-6 sm:py-2.5">
+    <a
+      href="#inicio"
+      class="nav-marca shrink-0 font-display text-xs font-bold tracking-wide text-kitsune-cream sm:text-base"
+    >
+      KITSUNE<span class="text-kitsune-coral">.</span>
+    </a>
+
+    <div
+      class="nav-categorias flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-1"
+    >
+      {
+        categorias.map((c) => (
+          <a
+            href={`#${c.id}`}
+            class="nav-categoria shrink-0 rounded-full px-2 py-1.5 text-xs text-kitsune-cream/80 transition-colors duration-150 hover:text-kitsune-cream sm:px-3 sm:text-sm"
+            data-categoria={c.id}
+          >
+            {c.label}
+          </a>
+        ))
+      }
+    </div>
+
+    <button
+      type="button"
+      data-abrir-pedido
+      class="relative inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-kitsune-coral-dark px-3 text-xs font-semibold text-white sm:px-3.5 sm:text-sm"
+    >
+      <span>Pedido</span>
+      <!-- Contador de unidades del pedido.
+           UNA sola fuente de verdad: `data-contador` dentro de este nodo. Antes
+           el envoltorio llevaba la clase `hidden` de Tailwind y NINGUNA regla
+           la quitaba: el número estaba en el DOM, correcto, y no se veía
+           nunca. La visibilidad la decide `[data-estado]`, no el build. -->
+      <span
+        data-contador-wrap
+        data-estado="vacio"
+        class="contador-pedido min-w-5 rounded-full bg-white/25 px-1.5 text-center font-bold tabular-nums"
+      >
+        <span data-contador class="tabular-nums" hidden></span>
+      </span>
+    </button>
+  </div>
+</nav>
+
+<style>
+  @media (max-width: 639px) {
+    .nav-fila { display: grid; grid-template-columns: 1fr auto; row-gap: .25rem; padding-block: .5rem .25rem; }
+    .nav-marca { font-size: .9rem; }
+    .nav-categorias { grid-column: 1 / -1; grid-row: 2; overflow: visible; justify-content: space-between; }
+    .nav-categoria { display: inline-flex; align-items: center; justify-content: center; flex: 1; min-height: 44px; font-size: .8rem; }
+  }
+</style>

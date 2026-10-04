@@ -1,0 +1,23 @@
+/* Fuentes de marca autoalojadas - SUBSETS del uso real del sitio.
+ * Generado por research/scripts/build_fonts.py - no editar a mano.
+ * Sin peticiones a fonts.googleapis.com ni fonts.gstatic.com en runtime.
+ * Montserrat va como fuente VARIABLE (100 900): un solo archivo cubre
+ * todos los pesos usados (400/500/600/700/800); antes eran 5 estaticos ~152 KB.
+ * Subsets verificados: 0 caracteres en uso perdidos (research/qa/fonts_build.json).
+ */
+
+@font-face {
+  font-family: 'Mochiy Pop One';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/mochiy-pop-one-latin-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/montserrat-var-latin.woff2') format('woff2');
+}

@@ -1,0 +1,471 @@
+---
+/**
+ * Animación de la mascota (zorro con ramen) para el hero.
+ *
+ * Sustituye a la instancia estática del hero, NO se añade una segunda
+ * mascota: el footer conserva la estática.
+ *
+ * ── Canal alfa REAL (2026-09-28) ────────────────────────────────────────
+ * La entrega anterior componía el vídeo sobre navy: eso quitaba el verde
+ * *visualmente en ese sitio*, pero NO le quitaba el fondo al archivo. El
+ * requisito es alfa real, y la vía es WebM/VP9 `yuva420p`:
+ *   - H.264/MP4 NO transporta alfa utilizable por el navegador.
+ *   - `-auto-alt-ref 0` es OBLIGATORIO: con alt-ref el encoder descarta la
+ *     pista alfa.
+ *   - HEVC `hvc1` (la vía de Apple) NO es una salida: esta build de ffmpeg
+ *     no puede codificarlo ("Loaded libx265 does not support alpha layer
+ *     encoding"). Medido, no supuesto.
+ *
+ * Fallback: el MP4 opaco sobre navy. Sobre el navy plano del hero es
+ * pixel-idéntico, así que la animación nunca se pierde.
+ *
+ * Beneficio visible: al ser transparente, el patrón seigaiha del hero se ve
+ * pasar por detrás del zorro. Antes lo interrumpía un rectángulo navy
+ * (defecto confirmado en captura de navegador real).
+ *
+ * ── Por qué no hay `autoplay` en el markup ────────────────────────────────
+ * `prefers-reduced-motion` NO se puede gobernar por CSS: ocultar el vídeo no
+ * impide que el navegador lo descargue y reproduzca. Por eso el atributo
+ * `autoplay` no se pone aquí; el script inline decide y, si el navegador
+ * rechaza `play()`, se queda el póster. Referencia: WCAG 2.2.2.
+ *
+ * ── 0 JS externo ──────────────────────────────────────────────────────────
+ * El script lleva `is:inline`: Astro no lo empaqueta en un bundle, se sirve en
+ * el HTML. El proyecto mantiene 0 archivos .js en dist/ como invariante.
+ */
+// IMPORTANTE: los assets de vídeo necesitan el sufijo `?url`.
+// Sin él, Astro sólo expone metadatos para imágenes y, en un .webm/.mp4,
+// `import x from '...'` devuelve una URL *plana*: `x.src` es `undefined` y
+// Astro elimina el atributo src del <source> por completo.
+// El bug se escondía porque el póster sí era una imagen y tapaba el vídeo.
+import loopWebm from '../assets/video/kitsune-loop-480-alpha.webm?url';
+import loopMp4 from '../assets/video/kitsune-loop-480.mp4?url';
+import posterAvif from '../assets/video/kitsune-poster-alpha.avif';
+import posterWebp from '../assets/video/kitsune-poster-alpha.webp';
+import posterNavyAvif from '../assets/video/kitsune-poster.avif';
+import posterNavyWebp from '../assets/video/kitsune-poster.webp';
+
+interface Props {
+  /** `decorative` cuando la marca ya está en texto cercano (aquí siempre). */
+  decorative?: boolean;
+  /** Pista de `sizes` según los 3 tamaños del slot del hero. */
+  sizes?: string;
+}
+
+const {
+  decorative = true,
+  sizes = '(max-width: 639px) 96px, (max-width: 1023px) 160px, 200px',
+} = Astro.props;
+
+// El vídeo es un cuadrado 480x480. El ancho/alto intrínsecos evitan CLS 0
+// cuando el póster cede el sitio a los píxeles del vídeo.
+const W = 480;
+const H = 480;
+---
+
+<div
+  class="mascot-motion relative"
+  data-mascot-motion
+  data-sizes={sizes}
+>
+  <picture data-mascot-poster>
+    <source type="image/avif" srcset={posterAvif.src} data-poster-avif />
+    <source type="image/webp" srcset={posterWebp.src} data-poster-webp />
+    <img
+      class="mascot-motion-poster absolute inset-0 h-full w-full object-contain"
+      src={posterWebp.src}
+      width={W}
+      height={H}
+      alt=""
+      aria-hidden={decorative ? 'true' : undefined}
+      decoding="async"
+    />
+  </picture>
+
+  <!-- Sin atributo poster: medido en red (research/qa/lighthouse/run1.json), el
+       poster WebP extra (38 KB) se descargaba de mas. El <video> vive a
+       opacity:0 hasta .is-playing (que solo se añade cuando ya hay frames),
+       asi que su poster individual jamas se ve: el <picture> de arriba es el
+       poster visible. useFallback() sigue fijando el navy para el camino
+       opaco (Safari), por si un navegador lo pinta antes del primer frame. -->
+  <video
+    class="mascot-motion-video relative h-full w-full object-contain opacity-0"
+    data-mascot-video
+    data-fallback-src={loopMp4}
+    data-fallback-poster-avif={posterNavyAvif.src}
+    data-fallback-poster-webp={posterNavyWebp.src}
+    width={W}
+    height={H}
+    loop
+    muted
+    playsinline
+    preload="none"
+    tabindex="-1"
+    aria-hidden={decorative ? 'true' : undefined}
+  >
+    <source src={loopWebm} type="video/webm" />
+    <source src={loopMp4} type="video/mp4" />
+  </video>
+
+  {/*
+    ⚠️ EL BOTÓN DE PAUSA SIGUE SIN ESTAR — y ahora el sitio vuelve a cumplir
+    WCAG 2.2 §2.2.2 (AA) SIN él.
+
+    Antes no cumplía: el bucle era de ~10,3 s, arrancaba solo, se repetía, y no
+    había ningún mecanismo para detenerlo (README y ARCHITECTURE.md invariante
+    47: excepción consciente del cliente del 2026-09-28, que dijo "no").
+
+    La solución respeta esa decisión y cierra el hueco por otro lado: el
+    movimiento automático NO dura más de 5 segundos.
+
+      · INTRODUCCIÓN (≤ 4,5 s): el vídeo entra y se reproduce una vez.
+      · ASENTADO: al llegar al tope, se pausa. Queda en su último fotograma,
+        que es un fotograma válido.
+      · BUCLE AMBIENTE: solo se reanuda si la persona INTERACTÚA con el héroe
+        (puntero encima, foco dentro, o un toque). Sin interacción, no hay
+        movimiento automático en absoluto.
+
+    El intercambio es explícito: el bucle ya no es "ambiental", pide un gesto.
+    A cambio, 2.2.2 se cumple y el cliente conserva su decisión. Si algún día
+    quiere el botón de vuelta, es una línea: se documentó para poder volver.
+
+    Además, sin coste:
+      · `prefers-reduced-motion` no reproduce NADA, ni la introducción.
+      · `IntersectionObserver` pausa fuera de pantalla.
+      · `Save-Data` no reproduce.
+      · `visibilitychange` pausa con la pestaña oculta.
+  */}
+</div>
+
+<script is:inline>
+  (function () {
+    var root = document.querySelector('[data-mascot-motion]');
+    if (!root) return;
+    var video = root.querySelector('[data-mascot-video]');
+    if (!video) return;
+
+    var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    var inView = true;
+    var canPlay = video.canPlayType('video/webm') || video.canPlayType('video/mp4');
+
+    // ── Detección de alfa en tiempo de ejecución ──────────────────────────
+    // POR QUÉ ESTO EXISTE: poner el WebM con alfa antes que el MP4 en el
+    // markup NO garantiza nada. Si un motor decodifica VP9 pero IGNORA su
+    // canal alfa, NO prueba el siguiente <source>: reproduce el WebM y se ve
+    // un rectángulo opaco. El orden de las fuentes solo decide entre códecs
+    // que el navegador NO PUEDA decodificar, nunca entre "decodifica pero
+    // pierde una capa".
+    //
+    // La prueba es directa: se dibuja un frame en un canvas y se lee el alfa
+    // de una esquina. Con alfa real la esquina sale [0,0,0,0]. Sin alfa sale
+    // opaca. Medido en Chromium: esquinaTL=[0,0,0,0].
+    //
+    // NO VERIFICADO: si WebKit/Safari respeta el alfa de VP9. Requiere macOS.
+    // Por eso esta detección existe: no confiamos en que sí, lo comprobamos.
+    function alphaRespected() {
+      if (!video.videoWidth) return true;      // aún no hay frame: no juzgar
+      try {
+        var c = document.createElement('canvas');
+        c.width = video.videoWidth;
+        c.height = video.videoHeight;
+        var g = c.getContext('2d', { willReadFrequently: true });
+        if (!g) return false;
+        g.clearRect(0, 0, c.width, c.height);
+        g.drawImage(video, 0, 0, c.width, c.height);
+        // 2,2 es dentro de la esquina y fuera del sujeto.
+        return g.getImageData(2, 2, 1, 1).data[3] === 0;
+      } catch (e) {
+        // FAIL SEGURO (decisión, no descuido): si el canvas está manchado
+        // (tainted) y getImageData lanza, NO SE PUEDE saber si el motor respeta
+        // el alfa. BUG PROPIO (corregido): aquí se devolvía `true`, es decir
+        // "alfa respetado" sin haberlo comprobado nunca — se soltaba el
+        // fallback justo en el caso que no se puede verificar. Ahora devuelve
+        // false y se degrada al MP4 navy: sobre navy plano el resultado es
+        // idéntico, así que fallar hacia el respaldo es el lado seguro.
+        return false;
+      }
+    }
+
+    // Si el alfa no se respeta, se baja explícitamente al MP4 navy Y se
+    // cambia el póster al navy. Con un póster transparente y un vídeo opaco
+    // sobre navy, se vería un flash de fondo incorrecto al cargar.
+    // BUG PROPIO (corregido): sin este cierre, useFallback() volvía a
+    // dispararse. El fallback fija src=<mp4 opaco>; al recargar salta
+    // 'loadeddata' otra vez; el MP4 no tiene alfa, así que alphaRespected()
+    // devuelve false y se llama a useFallback() de nuevo. No era un bucle
+    // infinito (la condición `!video.getAttribute('src')` impedía recargar),
+    // pero sí trabajo inútil y un estado que dependía de cuántas veces
+    // hubiera pasado por allí.
+    var fallbackApplied = false;
+    // BUG PROPIO (corregido): showVideo() consultaba `alphaChecked` sin que
+    // existiera -> ReferenceError al primer frame. Es un flag DISTINTO de
+    // `fallbackApplied`: aquel dice "el motor no respeta el alfa" (y entonces
+    // el MP4 navy SÍ se muestra); este dice "todavía no lo he comprobado"
+    // (y aún no se muestra nada). Confundirlos fue el bug anterior.
+    var alphaChecked = false;
+
+    function useFallback() {
+      if (fallbackApplied) return;
+      fallbackApplied = true;
+      var src = video.getAttribute('data-fallback-src');
+      if (src && !video.getAttribute('src')) {
+        video.setAttribute('src', src);
+        // Los <source> hijos ya no aplican si se fija src: se vacían para que
+        // no quede una fuente con alfa por delante.
+        while (video.firstElementChild) video.removeChild(video.firstElementChild);
+        video.load();
+      }
+      var pAvif = video.getAttribute('data-fallback-poster-avif');
+      var pWebp = video.getAttribute('data-fallback-poster-webp');
+      if (pWebp) {
+        video.setAttribute('poster', pWebp);
+        var pic = root.querySelector('[data-mascot-poster]');
+        var img = pic && pic.querySelector('img');
+        if (img) {
+          img.src = pWebp;
+          var s = pic.querySelector('[data-poster-avif]');
+          if (s && pAvif) s.setAttribute('srcset', pAvif);
+          var s2 = pic.querySelector('[data-poster-webp]');
+          if (s2 && pWebp) s2.setAttribute('srcset', pWebp);
+        }
+      }
+      root.setAttribute('data-alpha', 'no');
+    }
+
+    // El póster (una <img>) se oculta sólo cuando el vídeo tiene píxeles de
+    // verdad. Si el códec falla o autoplay se bloqueado, el póster sigue visible.
+    function showVideo() {
+      // ⚠️ No se muestra un frame hasta que el ALFA esté comprobado. Antes
+      // esto se llamaba desde `playing`, que dispara ANTES de `loadeddata`:
+      // en un motor que decodifica VP9 pero lo da opaco (el caso de Safari,
+      // WebKit PR #64837) se veía un rectángulo opaco durante los ~250 ms de
+      // la transición de opacity, y solo después caía al MP4 navy.
+      // Un flag pendiente — NO `fallbackApplied`: con ese flag el MP4 de
+      // respaldo tampoco se veía nunca, porque su opacidad depende de aquí.
+      if (!alphaChecked) return;
+      root.classList.add('is-playing');
+    }
+    function showPoster() {
+      root.classList.remove('is-playing');
+    }
+
+    /* ── El estado de la animación: INTRODUCCIÓN o BUCLE ──
+       `interaccion` separa las dos fases. Sin interacción, el vídeo reproduce
+       UNA vez y para al llegar al tope: 0 s de movimiento automático
+       persistente, que es lo que pedía WCAG 2.2.2. Con interacción, hace lo
+       que siempre hizo, y entonces el bucle ya no es "automático": es la
+       respuesta a un gesto.
+       El tope del movimiento automático: el umbral de WCAG 2.2.2 son 5 s, y se
+       va por debajo para no depender de la precisión del reloj del vídeo ni de
+       un fotograma que se pase por poco. */
+    var interaccion = false;
+    var introHecha = false;
+    var TOPE_MS = 4500;
+
+    function hayInteraccion() {
+      if (mq.matches || (conn && conn.saveData)) return false;
+      if (document.visibilityState !== 'visible' || !inView) return false;
+      return interaccion || !introHecha;
+    }
+
+    /** La interacción es lo que autoriza el bucle ambiente. */
+    function marcarInteraccion() {
+      if (interaccion) return;
+      interaccion = true;
+      root.setAttribute('data-interaccion', 'si');
+      sync();
+    }
+    root.addEventListener('pointerenter', marcarInteraccion);
+    root.addEventListener('focusin', marcarInteraccion);
+    root.addEventListener('touchstart', marcarInteraccion, { passive: true });
+
+    function sync() {
+      // El vídeo (2 MB con alfa) NO compite con la carga de la página: hasta
+      // que `arrancar()` no lo autorice, `sync()` no hace nada. Medido: con el
+      // arranque en el parseo, Lighthouse transfería los 2 MB del WebM dentro
+      // de la ventana de LCP (final-cart.json: 2 291 KB) y la nota caía a 96.
+      // El póster ocupa el slot desde el primer píxel, así que no hay hueco:
+      // el zorro ya está en pantalla, sólo pasa de estático a animado.
+      if (!puedeArrancar) return;
+      if (!canPlay || !hayInteraccion()) {
+        video.pause();
+        return;
+      }
+      video.loop = interaccion;    // en la introducción el bucle está OFF
+      var p = video.play();
+      if (p && typeof p.then === 'function') {
+        p.then(function () { showVideo(); }).catch(function () {
+          // Autoplay bloqueado: el póster es el estado final correcto.
+          showPoster();
+        });
+      }
+    }
+
+    // ── Arranque diferido: primero la página, después la animación ─────────
+    // BUG PROPIO (corregido por medición): este script llamaba a `sync()` al
+    // final del parseo, así que el WebM de 2 MB empezaba a descargar a la vez
+    // que las fuentes y el póster — que sí son el LCP — y con red lenta se
+    // quitaban ancho de banda entre ellos. Diferirlo a `load` es lo que hacen
+    // las guías de carga diferida de vídeo decorativo: el contenido primero.
+    var puedeArrancar = false;
+    var arrancado = false;
+    function arrancar() {
+      if (arrancado) return;
+      arrancado = true;
+      puedeArrancar = true;
+      sync();
+    }
+    if (document.readyState === 'complete') {
+      arrancar();
+    } else {
+      window.addEventListener('load', function () { setTimeout(arrancar, 60); });
+      // Red de seguridad: si `load` nunca llega (un recurso colgado), la
+      // animación no se queda esperando para siempre.
+      setTimeout(arrancar, 3500);
+    }
+
+    // ── La comprobación del alfa, en el momento en que YA HAY píxeles ─────
+    // WebKit PR #64837 documenta que Safari "dropped by the parser" el plano
+    // alfa de VP9 y lo reproducía completamente opaco. Ordenar las fuentes no
+    // ayuda ahí: el códec SÍ se decodifica, así que el navegador no prueba
+    // el siguiente <source>. Se comprueba con el canvas y, si el motor no
+    // respeta el alfa, se baja explícitamente al MP4 navy.
+    //
+    // Se espera al evento 'loadeddata' (no al primer play) para no decidir
+    // antes de tener un frame real que medir.
+    video.addEventListener('loadeddata', function () {
+      if (video.readyState < 2) return;
+      if (!alphaRespected()) {
+        useFallback();
+      }
+      // Se marca AL FINAL, en los dos caminos: o el alfa se respeta, o se
+      // acaba de caer al MP4 navy. En ambos casos ya es seguro mostrar.
+      alphaChecked = true;
+      sync();
+    });
+
+    // El botón de pausa fue ELIMINADO por decisión del cliente (2026-09-28).
+    // Coste documentado: WCAG 2.2 §2.2.2 (AA) deja de cumplirse para esta
+    // animación. Lo que sobrevive no necesita botón: `prefers-reduced-motion`,
+    // `IntersectionObserver` (pausa fuera de pantalla) y `Save-Data`.
+    // ══════════════════════════════════════════════════════════════════
+    //  EL LÍMITE DE 5 SEGUNDOS (WCAG 2.2 §2.2.2)
+    //  Se mide sobre el reloj del VÍDEO, no con un temporizador suelto: un
+    //  `setTimeout` puede dispararse antes de que el primer fotograma exista
+    //  y pausaría un vídeo que aún no ha arrancado. Con `timeupdate` el corte
+    //  cae en un punto real de la línea de tiempo.
+    // ══════════════════════════════════════════════════════════════════
+    function detenerAutomatico() {
+      introHecha = true;
+      root.setAttribute('data-auto', 'detenido');
+      // Sin interacción se queda en su último fotograma, que es un fotograma
+      // válido: la escena queda ASENTADA, no congelada a media acción.
+      if (!interaccion) video.pause();
+      else video.loop = true;
+    }
+    function vigilarTope() {
+      if (video.currentTime * 1000 < TOPE_MS) return;
+      video.removeEventListener('timeupdate', vigilarTope);
+      detenerAutomatico();
+    }
+    video.addEventListener('playing', function () {
+      showVideo();
+      video.addEventListener('timeupdate', vigilarTope, { passive: true });
+    });
+    video.addEventListener('error', function () { showPoster(); });
+
+    // ── El bucle NO puede quedarse parado al final ─────────────────────
+    // `loop` está en el markup, pero se REAFIRMA aquí porque `useFallback()`
+    // fija `src` a mano y esa recarga puede dejar el atributo sin efecto en
+    // algún motor. Sin esta reafirmación, el vídeo termina en `ended` y se
+    // queda congelado en el último fotograma para siempre.
+    video.loop = true;
+
+    video.addEventListener('ended', function () {
+      // Red de seguridad: si `loop` no llegara a reiniciar, el último
+      // fotograma se queda congelado para siempre. Se vuelve a cero y se
+      // reanuda. NO es un segundo botón de pausa: es la actualización del
+      // bucle, que es justamente lo que el usuario pidió.
+      video.currentTime = 0;
+      alphaChecked = true;      // ya hubo fotogramas visibles: se puede mostrar
+      sync();
+    });
+
+    video.addEventListener('loadeddata', function () {
+      video.loop = true;       // idem, tras cada cambio de fuente
+    });
+
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', sync);
+    } else if (typeof mq.addListener === 'function') {
+      mq.addListener(sync);
+    }
+
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('pageshow', sync);
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        inView = entries[0].isIntersecting;
+        if (inView) sync(); else video.pause();
+      }, { rootMargin: '120px' });
+      io.observe(root);
+    }
+
+    // BUG PROPIO (corregido): aquí quedaba `label()` de cuando existía el
+    // botón de pausa. Se eliminó la función, así que la llamada lanzaba
+    // ReferenceError y TODO el script de la página moría al arrancar —
+    // carrito y vídeo incluidos. Un nombre borrado deja una bomba de relojería.
+    //
+    // Aquí también había un `sync()` suelto: ya no arranca nada, porque el
+    // arranque es responsabilidad de `arrancar()` (tras `load`). Se quita para
+    // que no parezca que hay dos caminos de inicio.
+  })();
+</script>
+
+<style>
+  .mascot-motion {
+    /* El wrapper nunca lleva transform: la animación intrínseca del vídeo es
+       la única en este slot, para no pelearse con rise-in (y con `transform`
+       compuesto, que fue la causa del recorte del hero a 320 px). */
+    position: relative;
+    inline-size: 100%;
+    aspect-ratio: 1 / 1;
+  }
+  .mascot-motion :where(picture, img, video) {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+  /* El <picture> del poster tambien va absoluto: si no, el <img> absoluto se
+     sale de flujo pero el <picture> ocupa el 100% de alto y empuja al <video>
+     a un segundo bloque (alto = 200% del slot). */
+  .mascot-motion picture {
+    position: absolute;
+    inset: 0;
+  }
+  .mascot-motion-video {
+    /* Sólo se ve cuando hay píxeles reales. */
+    opacity: 0;
+    transition: opacity 0.25s var(--ease-out-quint, ease-out);
+  }
+  .mascot-motion.is-playing .mascot-motion-video {
+    opacity: 1;
+  }
+  .mascot-motion.is-playing .mascot-motion-poster {
+    opacity: 0;
+  }
+  .mascot-motion-poster {
+    transition: opacity 0.25s var(--ease-out-quint, ease-out);
+  }
+  /* CSS del botón de pausa ELIMINADO (decisión del cliente, 2026-09-28).
+     El coste es real: WCAG 2.2 §2.2.2 (AA) deja de cumplirse para esta
+     animación de ~10,3 s que arranca sola. Ver DECISIONS.md / ARCHITECTURE.md. */
+  @media (prefers-reduced-motion: reduce) {
+    .mascot-motion-video,
+    .mascot-motion-poster {
+      transition: none;
+    }
+  }
+</style>

@@ -1,0 +1,124 @@
+---
+// Mascota OFICIAL de Kitsune Makis (asset del cliente), no una reinterpretación.
+//
+// Evidencia (research/scripts/mascot_coherence.py, 2026-09-28):
+//   - El adjunto es un PNG RGBA 622x652 (330 KB), 55.4% transparente, 52.685
+//     colores únicos → vectorizar NO es viable (paths enormes).
+//   - Coherencia de marca medida como distancia RGB a los hexes del PDF:
+//       navy  #000072 → d=0    coral #FF365D → d=0
+//       cream #EEEEFF → d=1    lavanda #A8A8E0 → d=2
+//     Es decir: usa literalmente la paleta de marca.
+//   - Márgenes asimétricos (izq 105 / der 51) → recortado al bbox opaco.
+//   - Sin partes separables (ojos, cola): es una sola imagen rasterizada, por
+//     lo que NO hay parpadeo ni movimiento de cola (imposible en ráster).
+//     Se conserva sólo la flotación global, que es un `transform`.
+//   - AVIF a 240 px = 9.4 KB (97% menos que el PNG original).
+//
+// Si el cliente entrega el .svg original, este componente se puede sustituir
+// por un SVG inline y recuperar el parpadeo y las colas sin cambiar nada más.
+import avif160 from '../assets/mascot/kitsune-160.avif';
+import avif240 from '../assets/mascot/kitsune-240.avif';
+import avif320 from '../assets/mascot/kitsune-320.avif';
+import avif400 from '../assets/mascot/kitsune-400.avif';
+import webp160 from '../assets/mascot/kitsune-160.webp';
+import webp240 from '../assets/mascot/kitsune-240.webp';
+import webp320 from '../assets/mascot/kitsune-320.webp';
+import webp400 from '../assets/mascot/kitsune-400.webp';
+import png160 from '../assets/mascot/kitsune-160.png';
+import png240 from '../assets/mascot/kitsune-240.png';
+import png320 from '../assets/mascot/kitsune-320.png';
+import png400 from '../assets/mascot/kitsune-400.png';
+
+interface Props {
+  /** `decorative` cuando el nombre de la marca ya está en texto cercano. */
+  decorative?: boolean;
+  /** Ancho en píxeles CSS. */
+  width?: number;
+  height?: number;
+  class?: string;
+  /** Prioridad de carga: sólo el LCP del hero. */
+  priority?: boolean;
+  /** Flotación suave global (única animación posible en un ráster). */
+  float?: boolean;
+  /** Pista de `sizes`; por defecto cubre los 3 tamaños en uso. */
+  sizes?: string;
+  /** Fondo circular detrás de la mascota. Obligatorio sobre lavanda:
+   *  el cuerpo blanco da 1.09:1 contra `#E8E5F2` (medido) → invisible. */
+  onLavender?: boolean;
+}
+
+const {
+  decorative = false,
+  width = 240,
+  height = 296,
+  class: className = '',
+  priority = false,
+  float = false,
+  sizes = '(max-width: 639px) 80px, (max-width: 1023px) 160px, 200px',
+  onLavender = false,
+} = Astro.props;
+
+const alt = decorative ? '' : 'Mascota zorro kitsune de Kitsune Makis';
+---
+
+<div
+  class:list={[
+    'mascot',
+    float && 'mascot-float',
+    onLavender && 'mascot-on-lavender',
+    className,
+  ]}
+>
+  <picture>
+    <source
+      type="image/avif"
+      srcset={`${avif160.src} 160w, ${avif240.src} 240w, ${avif320.src} 320w, ${avif400.src} 400w`}
+      sizes={sizes}
+      width={width}
+      height={height}
+    />
+    <source
+      type="image/webp"
+      srcset={`${webp160.src} 160w, ${webp240.src} 240w, ${webp320.src} 320w, ${webp400.src} 400w`}
+      sizes={sizes}
+      width={width}
+      height={height}
+    />
+    <img
+      src={png240.src}
+      srcset={`${png160.src} 160w, ${png240.src} 240w, ${png320.src} 320w, ${png400.src} 400w`}
+      sizes={sizes}
+      alt={alt}
+      width={width}
+      height={height}
+      loading={priority ? 'eager' : 'lazy'}
+      decoding="async"
+      fetchpriority={priority ? 'high' : 'auto'}
+      aria-hidden={decorative ? 'true' : undefined}
+      role={decorative ? 'presentation' : undefined}
+    />
+  </picture>
+</div>
+
+<style>
+  .mascot {
+    width: 100%;
+    /* La imagen es alta (240x296). Sin esto, el flex la estira. */
+    line-height: 0;
+  }
+  .mascot img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  /* Fondo navy: sin él la mascota blanca desaparece sobre la lavanda del
+     footer (medido 1.09:1). */
+  .mascot-on-lavender {
+    border-radius: 9999px;
+    background: var(--color-kitsune-navy);
+    padding: 0.75rem;
+    box-shadow:
+      0 0 0 3px var(--color-kitsune-coral),
+      0 8px 24px rgb(0 0 72 / 0.18);
+  }
+</style>

@@ -1,0 +1,66 @@
+---
+// Reveal por scroll.
+//
+// La clase .js la añade AQUÍ MISMO y sólo si el IntersectionObserver existe:
+// el CSS nunca oculta contenido que no se pueda revelar. Fallback real.
+//
+// ⚠️ La navegación ya NO se oculta sobre el héroe (era `fixed` + `translateY`
+// y aparecía al hacer scroll). Ahora es compacta y visible desde el inicio, y
+// su categoría activa la marca `scripts/escena.ts`. Este componente solo
+// revela contenido; no navega.
+interface Props {
+  delay?: number;
+  className?: string;
+}
+
+const { delay = 0, className = '' } = Astro.props;
+---
+
+<div data-reveal style={`--reveal-delay: ${delay}ms`} class:list={[className]}>
+  <slot />
+</div>
+
+<script>
+  declare global {
+    interface Window {
+      __kitsuneBoot?: boolean;
+    }
+  }
+  if (!window.__kitsuneBoot) {
+    window.__kitsuneBoot = true;
+    const root = document.documentElement;
+
+    if ('IntersectionObserver' in window) {
+      // Sólo tiene sentido ocultar si el JS que revela está disponible.
+      root.classList.add('js');
+
+      /*
+       * BUG DE DISEÑO (cazado midiendo, no a ojo): con `threshold: 0.15` un
+       * elemento MÁS ALTO que `viewportÚtil / 0.15` no puede cumplir el
+       * umbral jamás — su ratio máxima posible es menor que 0,15 y queda en
+       * `opacity: 0` PARA SIEMPRE. Medido a 320x568: el armador lleno mide
+       * 3 488 px y el máximo alcanzable era 522,6/3 488 = 14,98 % < 15 %.
+       * Con un carrito restaurado por URL (?q=…), o con más contenido, la
+       * sección entera desaparece para el visitante.
+       *
+       * Arreglo: si el elemento es tan alto que el umbral es inalcanzable,
+       * basta con que intersecte (en cuanto asome, como cualquier reveal).
+       * Para el resto, el comportamiento es idéntico al de siempre.
+       */
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            const alcanzable = !e.rootBounds ||
+              e.boundingClientRect.height <= e.rootBounds.height / 0.15;
+            if (e.isIntersecting && (e.intersectionRatio >= 0.15 || !alcanzable)) {
+              e.target.classList.add('is-visible');
+              io.unobserve(e.target);
+            }
+          }
+        },
+        { threshold: [0, 0.15], rootMargin: '0px 0px -8% 0px' },
+      );
+      document.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+    }
+  }
+</script>

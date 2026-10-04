@@ -1,0 +1,44 @@
+name: Publicar Kitsune en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Leer la dirección de GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v6
+      - name: Verificar y construir el sitio
+        uses: withastro/action@v6
+        with:
+          path: site
+          node-version: 22
+          build-cmd: node --test src/lib/cart.test.ts src/lib/estado.test.ts && node node_modules/typescript/bin/tsc --noEmit && npm run build
+        env:
+          SITE_URL: ${{ steps.pages.outputs.origin }}
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v5

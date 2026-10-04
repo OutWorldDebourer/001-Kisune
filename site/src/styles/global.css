@@ -1,0 +1,881 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+@theme {
+  /* ── Marca Kitsune (extraída del PDF — ver research/01-brand-system.md) ── */
+  --color-kitsune-navy: #101526;
+  --color-kitsune-navy-deep: #181f34;
+  --color-kitsune-navy-soft: #252d44;
+  --color-kitsune-coral: #ff365d;
+  --color-kitsune-coral-soft: #e55e78;
+  --color-kitsune-coral-dark: #d6214c;
+  --color-kitsune-cream: #f5efe5;
+  --color-kitsune-lavender: #eee7dc;
+  --color-kitsune-lavender-blue: #a8a8e0;
+  --color-whatsapp: #25d366;
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ESCALA DE DISEÑO — se define UNA vez y se extiende a los componentes.
+     Sin esto, cada componente inventaba su propio radio y su propia sombra, y
+     "coherente" era una palabra, no una regla.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* Radios: tres pasos. `card` para superficies, `control` para lo pulsable,
+     `pill` para lo redondo. Un cuarto radio no existe. */
+  --radius-card: 1.25rem;
+  --radius-control: 0.875rem;
+  --radius-pill: 9999px;
+
+  /* Sombras: tres niveles de elevación, y solo tres.
+     `flota` es la única que se permite en una tarjeta; `hundida` es el hueco
+     (panel, campos); `cima` es lo que está por encima de todo (diálogo). */
+  --shadow-flota:
+    0 1px 2px rgb(0 0 60 / 0.28), 0 10px 24px -12px rgb(0 0 60 / 0.5);
+  --shadow-hundida:
+    inset 0 1px 0 rgb(238 238 255 / 0.06), 0 1px 2px rgb(0 0 60 / 0.3);
+  --shadow-cima: 0 24px 60px -18px rgb(0 0 40 / 0.62);
+
+  /* Superficies. La página es navy profundo; las tarjetas se separan por
+    elevación y por un borde de crema al 10 %, no por un color distinto. */
+  --surface-base: var(--color-kitsune-navy);
+  --surface-1: color-mix(in srgb, var(--color-kitsune-navy-deep) 78%, transparent);
+  --surface-2: color-mix(in srgb, var(--color-kitsune-navy-deep) 55%, transparent);
+  --borde-tenue: color-mix(in srgb, var(--color-kitsune-cream) 12%, transparent);
+  --borde-medio: color-mix(in srgb, var(--color-kitsune-cream) 24%, transparent);
+  --borde-activo: color-mix(in srgb, var(--color-kitsune-coral) 62%, transparent);
+
+  /* ── Tipografía ──
+     Display para marca y títulos, sans para TODO lo demás: datos, controles
+     y precios. Un precio en la tipografía display se lee como un adorno. */
+  --font-display: "Mochiy Pop One", "Montserrat", ui-sans-serif, sans-serif;
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+
+  /* ── Tokens de motion (spec: research/02-motion-spec.md) ── */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-stamp: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Duraciones. Las cuatro que pide la especificación, con nombre.
+     Se nombran para que nadie escriba `0.2s` suelto y rompa el ritmo. */
+  --dur-toque: 150ms;   /* hover / press            120–180 */
+  --dur-confirma: 220ms; /* agregado al pedido      180–260 */
+  --dur-panel: 300ms;   /* apertura de panel       250–350 */
+  --dur-reveal: 420ms;  /* reveal por scroll       350–450, una sola vez */
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOVIMIENTO AUTOMÁTICO — la regla que hace cumplible WCAG 2.2.2
+
+   WCAG 2.2 §2.2.2 (AA) exige mecanismo para pausar, detener u ocultar el
+   movimiento que ARRANCA SOLO y dura MÁS DE 5 SEGUNDOS. El sitio anterior
+   tenía un bucle de ~10,3 s sin ningún mecanismo, con una excepción
+   consciente del cliente (README, ARCHITECTURE.md invariante 47).
+
+   Aquí se resuelve SIN contradecir esa decisión: no se añade un botón de
+   pausa —el cliente lo pidió expressly— y en su lugar NINGÚN movimiento
+   automático del sitio dura más de 5 segundos.
+
+   · La mascota hace una INTRODUCCIÓN de 4,5 s y se queda asentada en su
+     último fotograma. El bucle ambiente solo arranca por INTERACCIÓN.
+   · El patrón seigaiha deriva 5 s y para. También sigue por interacción.
+   · Con `prefers-reduced-motion` no hay movimiento automático en absoluto,
+     ni siquiera esos 5 s: se respeta desde la inicialización, no después.
+
+   El resultado: el sitio vuelve a cumplir 2.2.2 y se conserva la decisión de
+   no poner un botón. El coste es que el bucle no es "ambiental": necesita un
+   gesto. Es un intercambio consciente, no un descuido.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem; /* compensa el ancla bajo la nav fija */
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  /* La barra inferior móvil es fija: sin este relleno, su contenido queda
+     debajo al final del documento y la acción principal es inalcanzable. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Foco visible accesible (WCAG 2.2) */
+:focus-visible {
+  outline: 3px solid var(--color-kitsune-coral);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ── Reveal por scroll ──
+   .js la añade EL MISMO script que crea el IntersectionObserver
+   (components/Reveal.astro). Si el JS no corre, la clase nunca se aplica
+   → el contenido se ve siempre. Nada de "todo invisible si falla un script". */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity var(--dur-reveal) var(--ease-out-quint),
+    transform var(--dur-reveal) var(--ease-out-quint);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.js [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   NAV — compacta DESDE EL INICIO, no al hacer scroll.
+   La versión anterior se ocultaba sobre el héroe y aparecía al bajar: en
+   móvil esoを残aba altura útil justo cuando hace falta.
+   ══════════════════════════════════════════════════════════════════ */
+.nav-kitsune {
+  background: color-mix(in srgb, var(--color-kitsune-navy) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border-bottom: 1px solid var(--borde-tenue);
+}
+
+/* La categoría activa se marca, pero sin saltar: `aria-current` es lo que
+   anuncia el lector de pantalla, la clase solo es el color. */
+.nav-categoria[aria-current='true'] {
+  background: color-mix(in srgb, var(--color-kitsune-coral) 20%, transparent);
+  color: var(--color-kitsune-cream);
+  box-shadow: inset 0 0 0 1px var(--borde-activo);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HERO — la COMIDA manda. El wordmark no ocupa media pantalla.
+   ══════════════════════════════════════════════════════════════════ */
+.hero-wordmark {
+  /* El sello sólo en la marca: nunca en un bloque de texto, o el escalado
+     1.06–1.35 lo recorta dentro del `overflow:hidden` del contenedor. */
+  --ks-stamp: 1.06;
+}
+@media (min-width: 640px) {
+  .hero-wordmark {
+    --ks-stamp: 1.35;
+  }
+}
+
+/* ── Escena 2.5D: RETIRADA en M06 ──────────────────────────────────────
+   Aquí vivía la composición de fotos en capas (`perspective` CSS), sus
+   variables `--dx`/`--dy`/`--z`/`--ry`/`--rx`/`--recorrido` y la entrada
+   `ks-capa` que animaba los nodos. Con la escena 3D real, el `.escena` es un
+   `<canvas>` con un póster debajo: no hay capas que mover, y la entrada la
+   hace la propia escena (M06/M07).
+
+   Estas reglas se han BORRADO, no escondido. Dejar estilos sin nodo es la
+   forma más común de dejar reglas y listeners muertos detrás (M06-C07), y
+   un keyframe que ya no anima nada sugiere que algo se mueve cuando no se
+   mueve nada. ─────────────────────────────────────────────────────────── */
+
+
+/* El interlineado del titular lo fija la clase `leading-[1.36]` del propio H1.
+   Se documenta aquí, pero NO se declara: una regla `#inicio h1` ganaría a la
+   clase por especificidad y volvería a imposing un valor viejo. Dos sitios
+   para lo mismo es exactamente como se desincroniza. Con esta display
+   (Mochiy Pop One, ascendentes y descendentes enormes) 1,08 dejaba el pie del
+   último renglón fuera de la caja —medido: 135 px de contenido en 128 px— y el
+   `<header>` tiene `overflow: hidden`, así que el recorte era real. */
+
+/* Precio y datos en sans, con cifras tabulares. */
+.precio-minimo {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-kitsune-cream);
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .precio-minimo {
+    font-size: 1.125rem;
+  }
+}
+/* Los totales del pedido y del configurador: sans + tabular. El tamaño grande
+   se consigue con el tamaño de la caja, no con la familia. */
+.linea-pedido-subtotal,
+[data-panel-total],
+[data-config-precio] {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tarjeta {
+    transition:
+      transform var(--dur-toque) var(--ease-standard),
+      box-shadow var(--dur-toque) var(--ease-standard);
+  }
+  /* La inclinación la fija `scripts/escena.ts` en --tilt-x / --tilt-y. Sin JS
+     (o sin puntero) las variables no existen y la tarjeta queda plana: el
+     catálogo se ve IGUAL, solo que sin inclinación. */
+  .tarjeta {
+    transform: none;
+  }
+  .tarjeta:hover {
+    box-shadow: var(--shadow-flota);
+  }
+  .tarjeta:hover .tarjeta-foto {
+    transform: scale(1.04);
+  }
+}
+.tarjeta-foto {
+  transition: transform 260ms var(--ease-out-quint);
+}
+/* En táctil: presión clara y sin desplazamiento. */
+@media (hover: none) {
+  .tarjeta:active {
+    transform: scale(0.985);
+    transition: transform var(--dur-toque) var(--ease-standard);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   EL PEDIDO — un panel, dos presentaciones.
+   El MISMO <dialog> es columna sticky en escritorio y hoja inferior en
+   móvil. Un solo elemento = un solo estado: no hay dos carritos que puedan
+   desincronizarse, ni dos capas apiladas.
+   ══════════════════════════════════════════════════════════════════ */
+dialog[data-panel] {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  color: var(--color-kitsune-cream);
+  background: color-mix(in srgb, var(--color-kitsune-navy-deep) 92%, transparent);
+  border: 1px solid var(--borde-medio);
+  box-shadow: var(--shadow-cima);
+  overflow: hidden;
+}
+/* Escritorio: es una columna del grid, no un diálogo. */
+dialog[data-panel][data-abierto='si'] {
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 5.25rem;
+  border-radius: var(--radius-card);
+  max-height: calc(100dvh - 7rem);
+}
+dialog[data-panel]::backdrop {
+  background: rgb(0 0 40 / 0.62);
+  backdrop-filter: blur(3px);
+}
+/* Móvil: hoja inferior. `showModal()` la pone en el top layer, con fondo
+   inert y el foco atrapado por el propio navegador.
+
+   ⚠️ ESPECIFICIDAD (hallazgo 03). Estas reglas viven dentro de una media
+   query, y una media query NO añade especificidad: `dialog[data-panel]`
+   (0,1,1) perdía contra `dialog[data-panel][data-abierto='si']` (0,2,1) de
+   arriba, y la hoja se quedaba con `position: sticky; top: 5.25rem` en el
+   móvil. Medido: borde inferior a 419 px del viewport, a 294 px de la base.
+   Por eso aquí se repite el selector con el atributo de estado: la hoja gana
+   porque tiene MÁS especificidad, no porque aparezca después. */
+@media (max-width: 1023px) {
+  dialog[data-panel],
+  dialog[data-panel][data-abierto='si'],
+  dialog[data-panel][data-abierto='no'] {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: auto;
+    width: 100%;
+    max-width: none;
+    /* 88 dvh de límite, medido contra la altura REAL del viewport móvil. */
+    max-height: 88dvh;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    border-bottom: 0;
+  }
+  /* El gesto del borde inferior y el área segura viven DENTRO del panel:
+     si viven en el body, la hoja tapa el botón «Seguir explorando» y el
+     contenido de la lista queda por debajo del pliegue del móvil. */
+  dialog[data-panel] > div:last-child {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+  dialog[data-panel][data-abierto] {
+    animation: hoja-sube var(--dur-panel) var(--ease-out-quint) both;
+  }
+  dialog[data-panel][data-abierto='no'] {
+    display: none;
+  }
+}
+/* El botón de cierre solo existe donde el panel es modal (móvil): en
+   escritorio el panel es una columna del grid y cerrarla no tiene sentido.
+   `lg:hidden` lo retira a partir de 1024 px — el mismo corte que usa
+   `fijarModoPanel()`, para que el botón y el modo nunca se contradigan. */
+.panel-cerrar {
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  flex: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-kitsune-cream);
+  border: 1px solid var(--borde-medio);
+  background: color-mix(in srgb, var(--color-kitsune-navy-deep) 70%, transparent);
+}
+@media (min-width: 1024px) {
+  .panel-cerrar {
+    display: none;
+  }
+}
+
+/* Contador del pedido: la visibilidad sale del ESTADO, no de la clase del
+   build. Con 0 unidades no hay nada que anunciar, así que no ocupa hueco. */
+.contador-pedido {
+  display: none;
+}
+.contador-pedido[data-estado='lleno'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   EL CONFIGURADOR — hoja inferior en móvil, diálogo centrado en
+   escritorio. Antes pegaba a la esquina superior izquierda: medido,
+   el borde inferior quedaba a 480 px del centro y a 312 px del borde.
+   ══════════════════════════════════════════════════════════════════ */
+.config-dialogo {
+  position: fixed;
+  inset: auto 0 0 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  max-height: 88dvh;
+  border-bottom: 0;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+}
+.config-dialogo > div {
+  max-height: 88dvh;
+}
+/* El área segura va DENTRO del diálogo, no en el body: si vive fuera, el
+   pliegue del móvil se come el botón de guardar. */
+.config-dialogo .config-pie {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 1024px) {
+  .config-dialogo {
+    inset: 0;
+    width: min(30rem, calc(100vw - 1.5rem));
+    max-width: min(30rem, calc(100vw - 1.5rem));
+    /* `margin: auto` con `inset: 0` es lo que CENTRA de verdad un diálogo
+       posicionado: sin esto se queda arriba a la izquierda. */
+    margin: auto;
+    max-height: min(86dvh, 40rem);
+    border-bottom: 1px solid var(--borde-medio);
+    border-radius: var(--radius-card);
+  }
+  .config-dialogo > div {
+    max-height: min(86dvh, 40rem);
+  }
+  .config-dialogo .config-pie {
+    padding-bottom: 1rem;
+  }
+}
+@keyframes hoja-sube {
+  from {
+    transform: translateY(14%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Filas del pedido: rejilla 2 columnas, y el nombre SIEMPRE con ancho propio.
+   Medido antes: con la fila en flex de una pasada, los controles consumían
+   todo el ancho y la columna del nombre caía a 0 px — el roll desaparecía y el
+   texto se derramaba sobre los controles. */
+.linea-pedido {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.4rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--borde-tenue);
+  background: var(--surface-2);
+}
+.linea-pedido-info {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.linea-pedido-nombre {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.linea-pedido-meta {
+  display: block;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--color-kitsune-cream) 62%, transparent);
+}
+/* El precio NUNCA se trunca: el nombre cede espacio, el total no. */
+.linea-pedido-subtotal {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-kitsune-coral);
+}
+.linea-pedido .stepper {
+  grid-column: 1;
+  grid-row: 2;
+}
+/* Editar y quitar: CELDA PROPIA cada uno (hallazgo 07).
+   Antes los dos botones compartían `grid-column: 2; grid-row: 2` y se montaban
+   uno sobre otro: medido, editar 70×16 px y quitar 14×14 px, encimados, con
+   «quitar» pulsándose al intentar editar. Ahora hay una fila propia con dos
+   celdas y 44×44 px reales por control (SC 2.5.8). */
+.linea-pedido-acciones {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+.linea-pedido-btn[data-accion='editar'],
+.linea-pedido-btn[data-accion='quitar'] {
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  flex: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-kitsune-cream);
+  border: 1px solid var(--borde-medio);
+  background: color-mix(in srgb, var(--color-kitsune-navy-deep) 55%, transparent);
+  transition:
+    background-color var(--dur-toque) var(--ease-standard),
+    transform var(--dur-toque) var(--ease-standard);
+}
+.linea-pedido-btn[data-accion='editar']:hover,
+.linea-pedido-btn[data-accion='quitar']:hover {
+  background: color-mix(in srgb, var(--color-kitsune-coral) 24%, transparent);
+}
+.linea-pedido-btn[data-accion='editar']:active,
+.linea-pedido-btn[data-accion='quitar']:active {
+  transform: scale(0.94);
+}
+/* En pantallas estrechas el nombre largo no puede empujar las acciones: la
+   fila de información baja a su propia línea y los controles quedan a lo
+   ancho, sin solape. */
+@media (max-width: 380px) {
+  .linea-pedido {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .linea-pedido-info,
+  .linea-pedido-subtotal,
+  .linea-pedido .stepper,
+  .linea-pedido-acciones {
+    grid-column: 1;
+  }
+  .linea-pedido-subtotal {
+    grid-row: 2;
+    justify-self: start;
+  }
+  .linea-pedido .stepper {
+    grid-row: 3;
+  }
+  .linea-pedido-acciones {
+    grid-row: 3;
+  }
+}
+/* Confirmación de agregado: 180–260 ms. Acompaña; no bloquea. */
+.linea-pedido.recien {
+  animation: ks-confirma var(--dur-confirma) var(--ease-out-quint);
+}
+@keyframes ks-confirma {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-kitsune-coral) 70%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+/* ── Stepper (patrón WAI-ARIA APG "Spinbutton") ──
+   44×44 px por control, por encima del mínimo AA de 24×24 (SC 2.5.8). */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.stepper-btn {
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  flex: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-kitsune-cream);
+  background: color-mix(in srgb, var(--color-kitsune-coral) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-kitsune-coral) 55%, transparent);
+  transition:
+    background-color var(--dur-toque) var(--ease-standard),
+    transform var(--dur-toque) var(--ease-standard);
+}
+.stepper-btn:hover {
+  background: color-mix(in srgb, var(--color-kitsune-coral) 38%, transparent);
+}
+.stepper-btn:active {
+  transform: scale(0.94);
+}
+.stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.stepper-input {
+  inline-size: 3.25rem;
+  block-size: 2.75rem;
+  text-align: center;
+  font-weight: 700;
+  /* tabular-nums: las cifras no bailan al cambiar. */
+  font-variant-numeric: tabular-nums;
+  color: var(--color-kitsune-cream);
+  background: color-mix(in srgb, var(--color-kitsune-navy-deep) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-kitsune-cream) 30%, transparent);
+  border-radius: 0.5rem;
+}
+.stepper-input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.stepper-input::-webkit-outer-spin-button,
+.stepper-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CONFIGURADOR — cinco tamaños, y solo del producto abierto.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* La rejilla de tamaños (hallazgo 05).
+   Antes: `min-width: 4.25rem` (68 px) × 5 = 340 px de ancho mínimo dentro de
+   una rejilla de 295 px. Medido a 320 px: los botones se solapaban 18,8 px uno
+   con otro y el primero se salía de la hoja.
+
+   Ahora el ancho lo reparte la rejilla, no el botón: `minmax(0, 1fr)` deja
+   que cada celda encoja por debajo de su contenido, y `min-inline-size`
+   garantiza que nunca baje de 44 px (el mínimo táctil, no una preferencia).
+   Tres columnas en móvil, cinco cuando hay sitio de sobra. */
+.tamanos-rejilla {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(44px, 1fr));
+  gap: 0.5rem;
+}
+@media (min-width: 480px) {
+  .tamanos-rejilla {
+    grid-template-columns: repeat(5, minmax(44px, 1fr));
+  }
+}
+.tamano {
+  display: flex;
+  position: relative;
+  min-block-size: 3.5rem;
+  min-inline-size: 44px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--borde-medio);
+  padding: 0.35rem 0.25rem;
+  transition:
+    border-color var(--dur-toque) var(--ease-standard),
+    background-color var(--dur-toque) var(--ease-standard),
+    transform var(--dur-toque) var(--ease-standard);
+}
+.tamano:active {
+  transform: scale(0.97);
+}
+.tamano-n {
+  font-weight: 700;
+  line-height: 1.15;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-kitsune-cream);
+  text-align: center;
+}
+.tamano-p {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-kitsune-coral);
+  text-align: center;
+}
+/* Piezas y precio por corte. Va en su propia línea y en el tamaño más pequeño
+   de la celda porque es un dato de apoyo, no el dato principal: con él dentro
+   de la línea del precio las cinco celdas quedaban apretadas y el rótulo del
+   mejor valor se partía en tres. */
+.tamano-x {
+  font-size: 0.5625rem;
+  line-height: 1.25;
+  text-align: center;
+  color: color-mix(in srgb, var(--color-kitsune-cream) 62%, transparent);
+}
+.tamano.is-on {
+  border-color: var(--color-kitsune-coral-dark);
+  background: color-mix(in srgb, var(--color-kitsune-coral-dark) 26%, transparent);
+}
+/* El radio nativo es invisible pero NO está fuera del flujo: se posiciona
+   sobre la etiqueta para que el foco se vea. `sr-only` lo recortaría a 1 px y
+   el anillo de foco desaparecería. */
+.tamano > input[type='radio'] {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+.tamano > input[type='radio']:focus-visible {
+  outline: 3px solid var(--color-kitsune-coral);
+  outline-offset: 2px;
+}
+.tamano:has(> input[type='radio']:checked) {
+  border-color: var(--color-kitsune-coral-dark);
+  background: color-mix(in srgb, var(--color-kitsune-coral-dark) 26%, transparent);
+}
+.opcion {
+  position: relative;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--borde-medio);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+  transition:
+    border-color var(--dur-toque) var(--ease-standard),
+    background-color var(--dur-toque) var(--ease-standard);
+}
+.opcion.is-on {
+  border-color: var(--color-kitsune-coral-dark);
+  background: color-mix(in srgb, var(--color-kitsune-coral-dark) 26%, transparent);
+}
+@media (max-width: 359px) {
+  .tamanos-rejilla { grid-template-columns: repeat(2, minmax(44px, 1fr)); }
+}
+@media (max-width: 639px) {
+  html { scroll-padding-top: 7rem; }
+  .hero-shell { padding-top: 6.5rem; }
+  #catalogo, #makis, #especiales, #bebidas { scroll-margin-top: 0; }
+}
+
+/* ── Recorte circular de producto: el dispositivo gráfico firmante del PDF ── */
+.dish-ring {
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 3px var(--color-kitsune-cream),
+    0 0 0 5px var(--color-kitsune-coral);
+}
+
+/* ── Motion: solo con preferencia normal (reduced-motion = todo quieto) ── */
+@media (prefers-reduced-motion: no-preference) {
+  /* Sello: sólo para el WORDMARK. Escala 1.35x, así que nunca debe aplicarse a
+     un bloque de texto: dentro de un ancestro con overflow-hidden el excedente
+     se recorta a ambos lados. Medido: un <p> de 257 px medía 351 px (=257*1.35)
+     durante su delay de 500 ms.
+     --ks-stamp: el wordmark ocupa todo el track, así que cualquier escala >1 lo
+     recorta. En pantallas estrechas se reduce (1.06) para que no haya recorte;
+     a partir de 640 px hay sitio para el sello completo (1.35). */
+  @keyframes kitsune-stamp {
+    0% {
+      opacity: 0;
+      transform: scale(var(--ks-stamp, 1.35)) rotate(-2deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+  }
+  @media (max-width: 639px) {
+    :root {
+      --ks-stamp: 1.06;
+    }
+  }
+  /* Entrada suave para texto y botones: sube 10 px, sin escalado. */
+  @keyframes kitsune-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  /* Entrada del producto: escala leve (1.08) para el recorte circular. */
+  @keyframes kitsune-pop {
+    0% {
+      opacity: 0;
+      transform: scale(1.08);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes kitsune-drift {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-34px);
+    }
+  }
+  /* Flotación global de la mascota. El asset del cliente es un PNG rasterizado
+     sin partes separables (ojos, cola), así que NO hay parpadeo ni cola: sólo
+     este transform global. Los keyframes de parpadeo/cola del SVG descartado
+     se eliminaron con el componente. */
+  @keyframes kitsune-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  .stamp-letter {
+    animation: kitsune-stamp 0.55s var(--ease-stamp) both;
+  }
+  .rise-in {
+    animation: kitsune-rise 0.5s var(--ease-out-quint) both;
+  }
+  .pop-in {
+    animation: kitsune-pop 0.6s var(--ease-out-quint) both;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     NINGÚN MOVIMIENTO AUTOMÁTICO SUPERA LOS 5 SEGUNDOS.
+     Las duraciones están debajo del umbral de WCAG 2.2 §2.2.2 (AA) y todas
+     terminan en su estado final (`both`), así que la escena queda ASENTADA y
+     no se congela a mitad de un fotograma.
+
+     La diferencia con la versión anterior, que era `infinite`:
+       · seigaiha: 70 s en bucle → 5 s y para.
+       · mascota: bucle continuo de ~10,3 s → introducción de 4,5 s y para.
+     El bucle ambiente de la mascota y el patrón solo se reanudan por
+     INTERACCIÓN (lo gobierna `scripts/escena.ts`). Ese es el mecanismo que
+     sustituye al botón de pausa que el cliente pidió no poner.
+     ══════════════════════════════════════════════════════════════════════ */
+  .mascot-float {
+    animation: kitsune-float 5s var(--ease-in-out-soft) both;
+  }
+  .seigaiha-drift {
+    /* Sin will-change permanente: es el anti-patrón que documenta MDN. Una
+       animación de 70 s no justificaba una capa a pantalla completa; una de
+       5 s y parada, menos. */
+    animation: kitsune-drift 5s var(--ease-in-out-soft) both;
+  }
+  .wa-hover-grow {
+    transition: transform var(--dur-toque) var(--ease-standard);
+  }
+  .wa-hover-grow:hover,
+  .wa-hover-grow:focus-visible {
+    transform: scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  /* Se respeta DESDE LA INICIALIZACIÓN: sin animación que "se quite después".
+     Un `animation: none` aquí deja la escena en su estado final declarado, que
+     es donde tiene que estar. */
+  .stamp-letter,
+  .rise-in,
+  .pop-in,
+  .mascot-float,
+  .seigaiha-drift,
+  .linea-pedido.recien {
+    animation: none !important;
+  }
+  .js [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.15s ease;
+  }
+  .stepper-btn,
+  .tarjeta,
+  .tamano,
+  .opcion,
+  .wa-hover-grow {
+    transition: none !important;
+  }
+  .stepper-btn:active,
+  .tarjeta:active {
+    transform: none !important;
+  }
+  dialog[data-panel][data-abierto] {
+    animation: none;
+  }
+}
+
+/* Contemporary food-led layout. Product controls stay still during motion. */
+.hero-shell { background: radial-gradient(ellipse at 80% 20%, #28304755, transparent 60%); }
+.hero-layout { display: grid; align-items: center; gap: 2rem; padding-block: 2.5rem 3.5rem; }
+.hero-eyebrow { color: var(--color-kitsune-coral); font-size: .7rem; font-weight: 700; letter-spacing: .19em; }
+.hero-heading { margin-top: .8rem; font-family: var(--font-display); font-size: clamp(2.3rem, 5vw, 4.4rem); line-height: 1.35; letter-spacing: -.035em; }
+.hero-heading span { color: #e9b7a5; }
+.hero-description { margin-top: 1.2rem; max-width: 28rem; color: #f5efe5b8; font-size: .95rem; line-height: 1.8; }
+.hero-price { margin-top: 1.2rem; font-size: .875rem; }
+.hero-price strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.hero-price span { color: #f5efe599; font-size: .75rem; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.4rem; }
+.hero-primary, .hero-secondary { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 1rem; border-radius: 999px; padding: .75rem 1.25rem; font-size: .875rem; font-weight: 600; }
+.hero-primary { background: var(--color-kitsune-coral-dark); color: white; }
+.hero-primary span { font-size: 1.2rem; }
+.hero-secondary { border: 1px solid var(--borde-medio); }
+.hero-footnote { margin-top: 1.2rem; max-width: 27rem; font-size: .7rem; line-height: 1.8; color: #f5efe580; }
+.menu-price-guide { margin-bottom: 1.25rem; border: 1px solid var(--borde-tenue); border-radius: .875rem; background: var(--surface-1); }
+.menu-price-guide summary { min-height: 48px; cursor: pointer; padding: .85rem 1rem; font-size: .8rem; }
+.menu-price-guide summary span { margin-left: .8rem; color: #f5efe599; font-size: .7rem; }
+.menu-price-guide table { width: calc(100% - 1.5rem); margin: 0 .75rem .75rem; font-size: .7rem; }
+.menu-price-guide th, .menu-price-guide td { text-align: right; padding: .6rem .15rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.menu-price-guide th:first-child { text-align: left; }
+.menu-price-guide tbody { border-top: 1px solid var(--borde-tenue); }
+.config-dialogo { overflow: hidden; }
+.config-dialogo > div { min-height: 0; }
+.config-dialogo > div > :first-child, .config-pie { flex-shrink: 0; }
+.config-dialogo [data-config-desc] { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.config-dialogo .config-arte { width: 4.5rem; height: 4.5rem; background: #eee7dc; }
+.config-dialogo .config-arte img { width: 100%; height: 100%; object-fit: cover; }
+.config-dialogo .config-arte::after { font-size: .5rem; }
+.config-dialogo .config-nota { font-size: .75rem; line-height: 1.6; color: #f5efe5a8; }
+.config-dialogo [data-config-opciones-grid] { display: block; }
+.config-dialogo .tamano { padding: .7rem .35rem; gap: .3rem; }
+.config-dialogo .tamano-x { font-size: .65rem; color: #f5efe5b8; }
+.config-dialogo .tamano-mejor { font-size: .6rem; color: #edb7a7; }
+.config-dialogo .tamano:has(.tamano-mejor) { border-color: #edb7a76b; }
+@media (min-width: 1024px) {
+  .hero-layout { grid-template-columns: 1fr 1.05fr; gap: 3rem; padding-block: 3.5rem 4rem; }
+  .hero-description { font-size: 1rem; }
+  .config-dialogo { width: min(36rem, calc(100vw - 1.5rem)); max-width: min(36rem, calc(100vw - 1.5rem)); }
+}
+@media (max-width: 479px) {
+  .hero-layout { gap: 1.75rem; padding-block: 1.8rem 2.25rem; }
+  .hero-description { margin-top: .8rem; }
+  .hero-actions { margin-top: 1rem; }
+  .hero-footnote { display: none; }
+  .config-dialogo .config-arte { width: 3.5rem; height: 3.5rem; }
+  .config-dialogo [data-config-desc] { -webkit-line-clamp: 2; font-size: .75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta-visual { transform: none !important; transition: none !important; }
+}

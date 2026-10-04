@@ -1,0 +1,76 @@
+---
+import { formatPrice, PRECIO_MINIMO_BANDEJA } from '../data/menu';
+import { visualFor } from '../data/visuals';
+
+interface Props {
+  nombre: string;
+  tipo: 'bandeja' | 'extra';
+  descripcion: string;
+  precio?: number;
+  nuevo?: boolean;
+  indice?: number;
+  opciones?: { id: string; label: string; corta?: string; grupo?: string }[];
+  categoria?: 'Especial' | 'Bebida';
+}
+const { nombre, tipo, descripcion, precio, nuevo, opciones } = Astro.props;
+const visual = visualFor(nombre);
+const configurable = tipo === 'bandeja' || !!opciones?.length;
+---
+
+<article class="tarjeta" data-producto data-tipo={tipo} data-nombre={nombre} data-descripcion={descripcion} data-en-pedido="no">
+  <div class="tarjeta-media">
+    <div class="tarjeta-visual">
+      {visual && <img
+        src={visual.image.src}
+        alt={visual.generated ? `Ilustración de ${nombre} inspirada en los ingredientes de la carta.` : `${nombre} de la carta de Kitsune Makis`}
+        width={visual.image.width}
+        height={visual.image.height}
+        loading="lazy"
+        decoding="async"
+        class="tarjeta-foto"
+      />}
+    </div>
+    {visual?.generated && <span class="arte-etiqueta">Ilustración IA</span>}
+    {nuevo && <span class="tarjeta-nuevo">Nuevo</span>}
+  </div>
+  <div class="tarjeta-contenido">
+    <div class="tarjeta-identidad">
+      <h3>{nombre}</h3>
+      <span class="tarjeta-precio">{tipo === 'bandeja' ? `Desde ${formatPrice(PRECIO_MINIMO_BANDEJA)}` : formatPrice(precio ?? 0)}</span>
+    </div>
+    <p class="tarjeta-descripcion">{descripcion}</p>
+    <div class="tarjeta-acciones">
+      <span data-unidades hidden class="tarjeta-contador"><span data-unidades-n>0</span> en el pedido</span>
+      {configurable ? (
+        <button type="button" data-configurar data-nombre={nombre} data-tipo={tipo} aria-label={`Configurar ${nombre}`} class="tarjeta-boton">
+          {tipo === 'bandeja' ? 'Elegir bandeja' : 'Elegir opciones'}<span aria-hidden="true">↗</span>
+        </button>
+      ) : (
+        <button type="button" data-anadir data-nombre={nombre} data-tipo="extra" aria-label={`Agregar ${nombre}`} class="tarjeta-boton">
+          Agregar<span aria-hidden="true">+</span>
+        </button>
+      )}
+    </div>
+  </div>
+</article>
+
+<style>
+  .tarjeta { display: flex; height: 100%; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--borde-tenue); border-radius: 1.25rem; background: #1b2335; }
+  .tarjeta-media { position: relative; overflow: hidden; aspect-ratio: 4 / 3; background: #eee7dc; isolation: isolate; }
+  .tarjeta-visual { width: 100%; height: 100%; transition: transform 300ms var(--ease-out-quint); transform: perspective(850px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg)); }
+  .tarjeta-foto { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+  .arte-etiqueta { position: absolute; right: .65rem; bottom: .65rem; border-radius: 999px; background: #101526d9; color: #f5efe5; padding: .25rem .55rem; font-size: .6rem; letter-spacing: .035em; }
+  .tarjeta-nuevo { position: absolute; top: .75rem; left: .75rem; padding: .3rem .65rem; border-radius: 999px; background: #d6214c; color: white; font-size: .65rem; font-weight: 700; }
+  .tarjeta-contenido { display: flex; flex: 1; flex-direction: column; padding: 1.1rem; }
+  .tarjeta-identidad { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; }
+  .tarjeta-identidad h3 { font-family: var(--font-sans); font-size: 1.125rem; font-weight: 700; letter-spacing: -.025em; line-height: 1.35; }
+  .tarjeta-precio { color: #edb7a7; font-size: .85rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tarjeta-descripcion { margin-top: .65rem; color: #f5efe5b3; font-size: .8rem; line-height: 1.7; }
+  .tarjeta-acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem; margin-top: auto; padding-top: 1rem; }
+  .tarjeta-boton { display: inline-flex; min-height: 44px; width: 100%; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid var(--borde-medio); border-radius: .75rem; padding: .6rem .9rem; font-size: .8rem; font-weight: 600; cursor: pointer; transition: background 150ms, border-color 150ms; }
+  .tarjeta-boton:hover { background: #d6214c; border-color: #d6214c; color: white; }
+  .tarjeta-boton span { font-size: 1.2rem; }
+  .tarjeta-contador { color: #edb7a7; font-size: .7rem; }
+  @media (hover: hover) and (pointer: fine) { .tarjeta:hover { border-color: #edb7a755; } }
+  @media (prefers-reduced-motion: reduce) { .tarjeta-visual { transform: none; transition: none; } }
+</style>

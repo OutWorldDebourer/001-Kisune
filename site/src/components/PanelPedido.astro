@@ -1,0 +1,166 @@
+---
+/**
+ * Tu pedido — UN SOLO ELEMENTO, dos presentaciones.
+ *
+ * En escritorio es la columna de la derecha, sticky dentro de toda la sección
+ * de compra. En móvil es la hoja inferior que abre la barra. Es el MISMO
+ * `<dialog>`, no dos: por eso no puede haber dos carritos desincronizados, ni
+ * dos capas apiladas, ni una copia del total que se quede vieja.
+ *
+ * Se usa `<dialog>` a propósito. `showModal()` da, gratis y bien hecho, lo que
+ * una implementación a mano suele hacer mal: fondo `inert`, foco atrapado,
+ * Escape, y devolución del foco a quien abrió. En escritorio NO se llama a
+ * `showModal()`: el elemento se deja abierto como columna normal del grid.
+ *
+ * ── El total y la acción NO se esconden nunca ──
+ * Van por debajo de la lista, dentro de un contenedor que NO tiene scroll
+ * propio: la lista es lo único que se desplaza. Con 47 líneas caben el total y
+ * el botón; no hay estado en el que "desaparezcan" porque la lista empujó.
+ */
+---
+
+<dialog
+  data-panel
+  data-abierto="no"
+  aria-labelledby="titulo-pedido"
+  class="w-full"
+>
+  <div class="flex min-h-0 flex-1 flex-col">
+    <!-- Cabecera -->
+    <div class="flex items-center justify-between gap-3 border-b border-[var(--borde-tenue)] px-4 py-3">
+      <h2
+        id="titulo-pedido"
+        data-panel-titulo
+        tabindex="-1"
+        class="font-display text-base text-kitsune-cream"
+      >
+        Tu pedido
+      </h2>
+      <button
+        type="button"
+        data-cerrar-pedido
+        aria-label="Cerrar el pedido y seguir explorando"
+        class="panel-cerrar"
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true" class="size-4" fill="currentColor">
+          <path d="M4.6 3.9 8 7.3l3.4-3.4.7.7L8.7 8l3.4 3.4-.7.7L8 8.7l-3.4 3.4-.7-.7L7.3 8 3.9 4.6z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Estado vacío. NODO SIEMPRE PRESENTE: lo oculta el controlador, no el
+         build. (Seis bugs seguidos vinieron de renderizar esto con `hidden` y
+         no volver a mostrarlo nunca.) -->
+    <div data-panel-vacio hidden class="px-4 py-6 text-center">
+      <p class="text-sm text-kitsune-cream/75">
+        Todavía no has agregado nada. Elige un roll y su tamaño para empezar.
+      </p>
+      <button
+        type="button"
+        data-panel-explorar
+        class="mt-3 inline-flex min-h-11 items-center rounded-full border border-[var(--borde-medio)] px-4 text-sm font-semibold text-kitsune-cream"
+      >
+        Elegir productos
+      </button>
+    </div>
+
+    <!-- La lista es lo ÚNICO que se desplaza, para que el total y la acción
+         queden siempre a la vista. -->
+    <ul data-panel-lineas hidden class="grid min-h-0 flex-1 gap-2 overflow-y-auto px-4 py-3"></ul>
+
+    <!-- Aviso de pedido largo. Aparece SOLO cuando el enlace no cabe. -->
+    <p
+      data-panel-aviso
+      hidden
+      class="mx-4 mb-2 rounded-[var(--radius-control)] border border-kitsune-coral/50 bg-kitsune-coral/12 px-3 py-2 text-sm text-kitsune-cream"
+    ></p>
+
+    <!-- Total y acción. Fuera de la zona desplazable, SIEMPRE visibles. -->
+    <div class="mt-auto border-t border-[var(--borde-tenue)] px-4 pb-4 pt-3">
+      <output class="block">
+        <span data-panel-cortes class="block text-sm text-kitsune-cream/75">Sin cortes</span>
+        <span
+          data-panel-total
+          class="mt-0.5 block font-display text-3xl font-bold tabular-nums text-kitsune-coral"
+        >
+          S/ 0.00
+        </span>
+      </output>
+
+      <!-- Las dos acciones del pie. «Seguir explorando» cierra el panel y
+           devuelve el foco al disparador; el enlace de WhatsApp cambia de
+           ROL según el estado: con productos envía el pedido escrito, vacío
+           es una consulta. Nunca hay un «enviar» que no envíe nada. -->
+      <div class="mt-3 grid gap-2">
+        <button
+          type="button"
+          data-panel-seguir
+          hidden
+          class="min-h-12 w-full rounded-full border border-[var(--borde-medio)] px-5 text-base font-semibold text-kitsune-cream"
+        >
+          Seguir explorando
+        </button>
+
+        <a
+          href="https://wa.me/51988843683"
+          target="_blank"
+          rel="noopener"
+          data-panel-enviar
+          class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-kitsune-coral-dark px-5 text-base font-semibold text-white"
+        >
+          <svg viewBox="0 0 24 24" class="h-5 w-5 fill-current" aria-hidden="true">
+            <path
+              d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-2.8-.9-5.6-3.4-6.7-6-.2-.5-.1-1 .1-1.3.2-.3.5-.8.8-1 .3-.2.6-.2.8 0l1.1.7c.2.2.3.4.4.7.1.3 0 .5 0 .7l-.3.6c-.1.2-.2.4 0 .6.5.9 1.6 1.9 2.6 2.4.2.1.5.1.7-.1l.5-.6c.2-.3.4-.2.7-.1l1.2.6c.3.2.5.3.6.4.1.2.1.6-.1 1Z"
+            ></path>
+          </svg>
+          <span data-panel-enviar-texto>Consultar por WhatsApp</span>
+        </a>
+      </div>
+
+      <p data-panel-nota hidden class="mt-2 text-xs leading-relaxed text-kitsune-cream/60">
+        Abriremos WhatsApp con tu pedido. Envíalo para confirmar disponibilidad, precio final y entrega.
+      </p>
+
+      {/*
+        La salida para pedidos largos (M05-C08).
+        El enlace de WhatsApp tiene un límite técnico: a partir de cierto tamaño,
+        `wa.me` recorta el texto sin avisar, y quien recibe un pedido a medias no
+        puede ni confirmar bien. Aquí el enlace NO se sustituye —se deja
+        siempre—: se AÑADE la copia, y el aviso explica por qué conviene. Con
+        un pedido normal, el botón ni aparece.
+      */}
+      <p data-panel-aviso hidden class="mt-2 text-xs leading-relaxed text-kitsune-coral">
+      </p>
+      <button
+        type="button"
+        data-panel-copiar
+        hidden
+        class="mt-2 min-h-11 w-full rounded-full border border-[var(--borde-medio)] px-4 text-sm font-semibold text-kitsune-cream"
+      >
+        Copiar el pedido
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Barra inferior (solo móvil). Vacía: explorar. Con contenido: el total. -->
+<div
+  data-barra
+  hidden
+  data-estado="vacio"
+  class="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--borde-tenue)] bg-[color-mix(in_srgb,var(--color-kitsune-navy)_94%,transparent)] px-4 pt-2 backdrop-blur lg:hidden"
+>
+  <button
+    type="button"
+    data-abrir-pedido
+    class="flex min-h-12 w-full items-center justify-between gap-3 rounded-full bg-kitsune-coral-dark px-5 text-base font-semibold text-white"
+  >
+    <span data-barra-texto>Explorar la carta</span>
+    <span data-barra-total class="shrink-0 font-bold tabular-nums"></span>
+  </button>
+  <div class="h-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]"></div>
+</div>
+
+<!-- Región viva: UNA sola. Nada más anuncia los cambios del pedido; dos
+     regiones = dos anuncios de lo mismo. -->
+<p data-live class="sr-only" role="status" aria-live="polite"></p>

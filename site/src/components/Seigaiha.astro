@@ -1,0 +1,31 @@
+---
+// Patrón seigaiha (olas superpuestas) como capa decorativa de fondo.
+//
+// A opacidad 0.12, no a 0.22. Medido en la captura del rediseño: a 0.22 las olas
+// se leían POR ENCIMA de la foto de la bandeja y competían con la comida. La
+// dirección pide que el patrón no relegue al producto, y el patrón no se
+// degrada quitándolo: bajando su peso, el navy sigue teniendo textura.
+//
+// La deriva dura 5 s y PARA (ver global.css): WCAG 2.2.2 (AA). Antes eran 70 s
+// en bucle infinito.
+---
+<div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+  <svg class="absolute inset-0 h-full w-full text-kitsune-lavender-blue" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="seigaiha" width="96" height="48" patternUnits="userSpaceOnUse">
+        <g fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M0 0 A24 24 0 0 1 48 0" />
+          <path d="M48 0 A24 24 0 0 1 96 0" />
+          <path d="M-24 24 A24 24 0 0 1 24 24" />
+          <path d="M24 24 A24 24 0 0 1 72 24" />
+          <path d="M72 24 A24 24 0 0 1 120 24" />
+        </g>
+      </pattern>
+    </defs>
+    <!-- Dos rectángulos consecutivos garantizan cobertura durante la deriva -->
+    <g class="seigaiha-drift" opacity="0.045">
+      <rect width="100%" height="100%" fill="url(#seigaiha)" />
+      <rect x="100%" width="100%" height="100%" fill="url(#seigaiha)" />
+    </g>
+  </svg>
+</div>

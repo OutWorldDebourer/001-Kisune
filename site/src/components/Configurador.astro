@@ -1,0 +1,251 @@
+---
+/**
+ * Configurador de un producto — `<dialog>` modal.
+ *
+ * Existe para sustituir la rejilla de 8 rolls × 5 tamaños que había dentro del
+ * armador. Aquello enseñaba las cinco opciones de los ocho productos a la vez
+ * (40 celdas), y no se podía decir qué producto se estaba configurando.
+ *
+ * Aquí los cinco tamaños se pintan SOLO del producto abierto, se muestra su
+ * precio por bandeja, cuántas bandejas y un botón que dice si va a AGREGAR o a
+ * GUARDAR CAMBIOS. La distinción no es decorativa: son dos operaciones
+ * distintas sobre el estado.
+ *
+ * El contenido se rellena desde el controlador (`scripts/pedido.ts`), que lee
+ * los precios de `lib/cart.ts`. Aquí no hay ni un número escrito a mano: ni un
+ * precio, ni un tamaño, ni un nombre. Si la carta cambia, cambia el modelo y el
+ * diálogo lo enseña.
+ *
+ * ── Presentación (M01-C03) ────────────────────────────────────────────────
+ * El MISMO diálogo se presenta como hoja inferior en móvil y como diálogo
+ * centrado en escritorio. Antes no tenía `margin: auto` ni `inset`, así que
+ * pegaba a la esquina superior izquierda y el borde inferior quedaba a 480 px
+ * del centro: medido, desviación de −480 px en 1440×900. Ahora lo decide CSS con
+ * el mismo corte de 1024 px que usa el panel del pedido.
+ *
+ * ── Los cinco tamaños (M01-C09) ───────────────────────────────────────────
+ * Son `<input type="radio">` NATIVOS dentro de un `<fieldset>` con `<legend>`.
+ * Antes eran `<button role="radio">` sueltos: sin grupo, sin nombre, sin
+ * flechas, y con `tabindex` ausente para cuatro de los cinco — inaccesibles con
+ * teclado. Con radios nativos el grupo, la selección única y las flechas los
+ * resuelve el navegador, que es justamente lo que hay que delegar.
+ */
+
+import { contacto } from '../data/menu';
+---
+
+<dialog
+  data-config
+  aria-labelledby="titulo-config"
+  class="config-dialogo rounded-[var(--radius-card)] border border-[var(--borde-medio)] p-0 text-kitsune-cream"
+  style="background: var(--color-kitsune-navy-deep);"
+>
+  <div class="flex max-h-[86dvh] flex-col md:max-h-[min(86dvh,40rem)]">
+    <div class="flex items-start justify-between gap-3 border-b border-[var(--borde-tenue)] px-5 py-4">
+      {/*
+        La IDENTIDAD del producto viaja al configurador (M05-C03). Abría con un
+        título de texto sobre el navy y sin ninguna señal de qué se está
+        configurando: era fácil tener dos diálogos seguidos y no saber si el
+        segundo era el mismo plato. Ahora el recuadro repite el mismo recurso
+        que la tarjeta —foto verificada o ilustración— y el título va al lado.
+      */}
+      <span class="config-arte" data-config-arte aria-hidden="true"></span>
+      <div class="min-w-0 flex-1">
+        <h2 id="titulo-config" data-config-titulo class="font-display text-lg">
+          Configurar
+        </h2>
+        <p data-config-desc class="mt-1 text-sm leading-relaxed text-kitsune-cream/70"></p>
+        {/* La unidad, explícita: un roll se vende en BANDEJAS de N cortes y un
+            extra se vende POR UNIDAD. Sin este dato, «cantidad 3» no dice si
+            son tres rollos o tres platos. */}
+        <p data-config-unidad class="mt-1 text-xs text-kitsune-cream/60"></p>
+      </div>
+      <button
+        type="button"
+        data-config-cerrar
+        aria-label="Cerrar la configuración"
+        class="inline-grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full border border-[var(--borde-medio)] text-kitsune-cream/80"
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true" class="size-4" fill="currentColor">
+          <path d="M4.6 3.9 8 7.3l3.4-3.4.7.7L8.7 8l3.4 3.4-.7.7L8 8.7l-3.4 3.4-.7-.7L7.3 8 3.9 4.6z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      {/*
+        Los cinco tamaños. Se rellenan al abrir, con el producto activo.
+
+        ⚠️ El `hidden` es el ATRIBUTO, no la clase `hidden` de Tailwind. Con la
+        clase, poner `configTamanos.hidden = false` quita el atributo y NO la
+        clase: el bloque se queda en `display: none` para siempre. Pasó, y se
+        vio en la captura del móvil — el diálogo abría con el precio del tamaño
+        40 ya calculado y sin ninguna opción para elegirlo. Los tests miraban
+        que existieran cinco celdas, y existían: no miraban que se vieran.
+      */}
+      <fieldset data-config-tamanos hidden class="min-w-0 border-0 p-0">
+        <legend class="text-sm font-semibold text-kitsune-cream">
+          Elige el tamaño de la bandeja
+        </legend>
+        <p class="mb-2 mt-1 text-xs text-kitsune-cream/65">
+          El precio es por bandeja y depende de los cortes.
+        </p>
+        <div data-config-tamanos-grid class="tamanos-rejilla"></div>
+      </fieldset>
+
+      {/* Opciones (hoy: la salsa del Burguermaki), con el dato pendiente. */}
+      <div data-config-opciones hidden class="mt-4">
+        <p class="mb-2 text-xs text-kitsune-cream/60">Opciones</p>
+        <div data-config-opciones-grid class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      {/* Cantidad. El campo sigue siendo un <input type="number">
+          (nativo, con teclado numérico en móvil) y los dos botones lo ajustan:
+          44×44 px cada uno, por encima del mínimo de SC 2.5.8. */}
+      <div class="mt-5">
+        <label for="config-cantidad" data-config-cantidad-texto class="mb-2 block text-sm text-kitsune-cream/75">
+          Cantidad
+        </label>
+        <div class="stepper" role="group" aria-labelledby="config-cantidad-etiqueta">
+          <button
+            type="button"
+            data-config-menos
+            class="stepper-btn"
+            aria-label="Disminuir cantidad"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" class="size-4" fill="currentColor">
+              <path d="M3.5 7.2h9v1.6h-9z"></path>
+            </svg>
+          </button>
+          <input
+            id="config-cantidad"
+            data-config-cant
+            type="number"
+            inputmode="numeric"
+            min="1"
+            max="99"
+            step="1"
+            value="1"
+            aria-labelledby="config-cantidad-etiqueta"
+            class="stepper-input"
+          />
+          <span id="config-cantidad-etiqueta" class="sr-only">Cantidad</span>
+          <button
+            type="button"
+            data-config-mas
+            class="stepper-btn"
+            aria-label="Aumentar cantidad"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" class="size-4" fill="currentColor">
+              <path d="M7.2 3.5h1.6v3.7h3.7v1.6H8.8v3.7H7.2V8.8H3.5V7.2h3.7z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t border-[var(--borde-tenue)] px-5 py-4 config-pie">
+      <p data-config-precio class="text-sm font-semibold tabular-nums text-kitsune-coral"></p>
+      <button
+        type="button"
+        data-config-guardar
+        class="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-kitsune-coral-dark px-5 text-sm font-semibold text-white"
+      >
+        Agregar al pedido
+      </button>
+      <p class="mt-2 text-center text-xs text-kitsune-cream/60">
+        ¿Dudas? Escríbenos al {contacto.whatsapp}
+      </p>
+    </div>
+  </div>
+</dialog>
+
+<style is:global>  /* El recuadro de identidad. Comparte tamaños con la tarjeta para que el
+     producto sea reconocible de un vistazo al abrir (M05-C03). */
+  .config-arte {
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: 3.5rem;
+    block-size: 3.5rem;
+    flex: none;
+    overflow: hidden;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--borde-medio);
+    background: var(--surface-2);
+  }
+  @media (min-width: 640px) {
+    .config-arte {
+      inline-size: 4.5rem;
+      block-size: 4.5rem;
+    }
+  }
+  .config-arte img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+  /* Sin foto verificada: se declara en la propia caja, igual que en la tarjeta.
+     El texto sale del atributo, para que la etiqueta viva en el mismo sitio
+     que el tratamiento y no puedan separarse. */
+  .config-arte[data-tratamiento]::after {
+    content: attr(data-tratamiento);
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline: 0;
+    padding: 0.1rem 0;
+    background: color-mix(in srgb, var(--color-kitsune-navy-deep) 84%, transparent);
+    color: var(--color-kitsune-cream);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .config-arte[data-tratamiento='categoria']::before {
+    content: '';
+    position: absolute;
+    inline-size: 1.1rem;
+    block-size: 1.1rem;
+    border-radius: 50%;
+    border: 2px solid var(--color-kitsune-coral);
+    opacity: 0.7;
+  }
+
+  /* Los grupos de opción: relleno y salsa son dos decisiones y salen como dos
+     bloques con su título, no como una lista plana de cinco. */
+  .config-grupo {
+    min-inline-size: 0;
+    border: 0;
+    padding: 0;
+  }
+  .config-dialogo .opcion { cursor: pointer; gap: .5rem; }
+  .config-dialogo .opcion-input { accent-color: var(--color-kitsune-coral-dark); flex: none; }
+  .config-dialogo .opcion:focus-within { outline: 2px solid var(--color-kitsune-cream); outline-offset: 3px; }
+  .config-grupo + .config-grupo {
+    margin-block-start: 0.9rem;
+  }
+  .config-grupo-titulo {
+    margin: 0;
+    padding: 0;
+    font-size: 0.75rem;
+    color: color-mix(in srgb, var(--color-kitsune-cream) 72%, transparent);
+  }
+  .config-nota {
+    margin-block-start: 0.9rem;
+    inline-size: 100%;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--color-kitsune-coral) 85%, white);
+  }
+  /* La marca del tamaño con mejor precio por corte. Es un dato, no una
+     recomendación: la elección es de quien pide (M05-C01). */
+  .tamano-mejor {
+    margin-block-start: 0.15rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-kitsune-coral);
+  }
+</style>

@@ -1,0 +1,235 @@
+﻿---
+/**
+ * Kitsune Makis — carta y pedido en UNA sola experiencia.
+ *
+ * ── El cambio de fondo ──
+ * Antes había DOS listes de los mismos productos: las secciones de texto
+ * (Makis / Especiales / Bebidas) y el armador de bandeja, que repetía los ocho
+ * rolls con sus cinco tamaños. Forty celdas de selector más una carta entera, y
+ * el precio de un producto en dos sitios que podían contradecirse.
+ *
+ * Ahora hay un solo sitio donde un producto existe (la tarjeta), y el pedido se
+ * arma desde él. El "Tu pedido" es la MISMA columna en escritorio y la MISMA
+ * hoja en móvil, porque es un único elemento `<dialog>`.
+ *
+ * ── La regla comercial, intacta ──
+ * El precio es POR BANDEJA y vale para cualquier maki (10/20/30/40/50 →
+ * S/ 20/35/52/64/87). Un pedido son varias bandejas SUMADAS. No hay tramos, no
+ * hay descuento por volumen y no se asume que una bandeja admita mezcla de
+ * sabores. Todos esos datos viven en `data/menu.ts`; esta página no escribe ni
+ * un número de precio.
+ */
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Escena from '../components/Escena.astro';
+import Seigaiha from '../components/Seigaiha.astro';
+import Reveal from '../components/Reveal.astro';
+import TarjetaProducto from '../components/TarjetaProducto.astro';
+import PanelPedido from '../components/PanelPedido.astro';
+import Configurador from '../components/Configurador.astro';
+import { makis, especiales, bebidas, contacto, cortes, formatPrice, PRECIO_MINIMO_BANDEJA } from '../data/menu';
+
+const waVacio = `https://wa.me/${contacto.whatsappIntl}?text=${encodeURIComponent(
+  '¡Hola Kitsune Makis! Quiero información sobre las bandejas.',
+)}`;
+const igUrl = 'https://instagram.com/kitsunemakis';
+---
+
+<Layout title="Kitsune Makis — Carta 2026">
+  <Nav />
+
+  <header id="inicio" class="hero-shell relative isolate overflow-hidden pt-14">
+    <Seigaiha />
+    <div class="hero-layout relative mx-auto max-w-7xl px-4 sm:px-6">
+      <div class="hero-copy">
+        <p class="hero-eyebrow rise-in">KITSUNE MAKIS · LIMA</p>
+        <h1 class="hero-heading rise-in" style="animation-delay: 70ms">
+          Tu roll.<br /><span>Tu momento.</span>
+        </h1>
+        <p class="hero-description rise-in" style="animation-delay: 140ms">
+          Makis por bandeja, hechos al momento. Elige tus favoritos y envía tu pedido por WhatsApp.
+        </p>
+        <p class="hero-price rise-in" style="animation-delay: 180ms">
+          Desde <strong>{formatPrice(PRECIO_MINIMO_BANDEJA)}</strong><span> / bandeja de 10 cortes</span>
+        </p>
+        <div class="hero-actions rise-in" style="animation-delay: 220ms">
+          <a href="#catalogo" class="hero-primary">Explorar la carta <span aria-hidden="true">↗</span></a>
+          <a href={waVacio} target="_blank" rel="noopener" class="hero-secondary">WhatsApp</a>
+        </div>
+        <p class="hero-footnote">Elige el roll · Configura tu bandeja · Confirma por WhatsApp</p>
+      </div>
+      <div class="escena-portada"><Escena /></div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════ CATÁLOGO + PEDIDO ═══════════════════
+       Dos columnas a partir de 1024 px. El panel es sticky DENTRO de esta
+       sección, así que acompaña a makis, especiales y bebidas por igual, y el
+       total y la acción quedan a la vista con el pedido más largo que se
+       pueda hacer. -->
+  <main id="catalogo" class="relative mx-auto max-w-7xl scroll-mt-20 px-4 pb-32 pt-10 sm:px-6 lg:pb-20">
+    <div class="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div class="min-w-0">
+        <!-- MAKIS -->
+        <section id="makis" aria-labelledby="titulo-makis" class="scroll-mt-24">
+          <Reveal>
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <h2 id="titulo-makis" class="font-display text-2xl font-bold sm:text-3xl">Makis</h2>
+              <p class="text-sm text-kitsune-cream/65">
+Ocho rolls, cinco tamaños. Tu combinación empieza aquí.
+              </p>
+            </div>
+          </Reveal>
+          <details class="menu-price-guide">
+            <summary>Precios por bandeja <span>10 a 50 cortes</span></summary>
+            <table>
+              <caption class="sr-only">Precio por bandeja, válido para cualquier maki</caption>
+              <thead><tr><th scope="col">Cortes</th>{cortes.map(c => <th scope="col">{c.n}</th>)}</tr></thead>
+              <tbody><tr><th scope="row">Precio</th>{cortes.map(c => <td>{formatPrice(c.price)}</td>)}</tr></tbody>
+            </table>
+          </details>
+          <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {
+              makis.map((m, i) => (
+                <li class="min-w-0">
+                  <TarjetaProducto
+                    nombre={m.name}
+                    tipo="bandeja"
+                    descripcion={m.description}
+                    nuevo={m.nuevo}
+                    indice={i + 1}
+                  />
+                </li>
+              ))
+            }
+          </ul>
+        </section>
+
+        <!-- ESPECIALES -->
+        <section id="especiales" aria-labelledby="titulo-especiales" class="mt-10 scroll-mt-24">
+          <Reveal>
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <h2 id="titulo-especiales" class="font-display text-2xl font-bold sm:text-3xl">
+                Especiales
+              </h2>
+              <p class="text-sm text-kitsune-cream/65">Precio por unidad.</p>
+            </div>
+          </Reveal>
+          <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {
+              especiales.map((p, i) => (
+                <li class="min-w-0">
+                  <TarjetaProducto
+                    nombre={p.name}
+                    tipo="extra"
+                    categoria="Especial"
+                    precio={p.price}
+                    descripcion={p.description}
+                    opciones={p.opciones?.map((o) => ({
+                      id: o.id,
+                      label: o.label,
+                      corta: o.corta,
+                      grupo: o.grupo,
+                    }))}
+                    indice={i + 1}
+                  />
+                </li>
+              ))
+            }
+          </ul>
+        </section>
+
+        <!-- BEBIDAS -->
+        <section id="bebidas" aria-labelledby="titulo-bebidas" class="mt-10 scroll-mt-24">
+          <Reveal>
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <h2 id="titulo-bebidas" class="font-display text-2xl font-bold sm:text-3xl">
+                Bebidas
+              </h2>
+              <p class="text-sm text-kitsune-cream/65">Precio por unidad.</p>
+            </div>
+          </Reveal>
+          <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {
+              bebidas.map((b, i) => (
+                <li class="min-w-0">
+                  <TarjetaProducto
+                    nombre={b.name}
+                    tipo="extra"
+                    categoria="Bebida"
+                    precio={b.price}
+                    descripcion={b.description}
+                    indice={i + 1}
+                  />
+                </li>
+              ))
+            }
+          </ul>
+        </section>
+      </div>
+
+      <!-- El pedido: una columna sticky en escritorio, una hoja inferior en
+           móvil. Es el MISMO elemento. -->
+      <div class="min-w-0">
+        <PanelPedido />
+      </div>
+    </div>
+
+    <!-- ═══════════════════ CIERRE ═══════════════════ -->
+    <footer class="mt-16 rounded-[var(--radius-card)] bg-kitsune-lavender p-8 text-kitsune-navy">
+      <div class="flex flex-col items-center gap-4 text-center">
+        <h2 class="font-display text-2xl font-bold sm:text-3xl">¿Dudas o un pedido grande?</h2>
+        <p class="max-w-md text-sm text-kitsune-navy/75">
+          Escríbenos y te asesoramos. También nos encuentras en Instagram.
+        </p>
+        <div class="mt-1 flex flex-col items-center gap-2.5 sm:flex-row">
+          <a
+            href={waVacio}
+            target="_blank"
+            rel="noopener"
+            class="wa-hover-grow inline-flex min-h-12 items-center gap-2 rounded-full bg-whatsapp px-6 text-base font-bold text-kitsune-navy"
+          >
+            <svg viewBox="0 0 24 24" class="h-5 w-5 fill-current" aria-hidden="true">
+              <path
+                d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-2.8-.9-5.6-3.4-6.7-6-.2-.5-.1-1 .1-1.3.2-.3.5-.8.8-1 .3-.2.6-.2.8 0l1.1.7c.2.2.3.4.4.7.1.3 0 .5 0 .7l-.3.6c-.1.2-.2.4 0 .6.5.9 1.6 1.9 2.6 2.4.2.1.5.1.7-.1l.5-.6c.2-.3.4-.2.7-.1l1.2.6c.3.2.5.3.6.4.1.2.1.6-.1 1Z"
+              ></path>
+            </svg>
+            {contacto.whatsapp}
+          </a>
+          <a
+            href={igUrl}
+            target="_blank"
+            rel="noopener"
+            class="inline-flex min-h-12 items-center rounded-full border-2 border-kitsune-navy/30 px-5 text-base font-semibold"
+          >
+            {contacto.instagram}
+          </a>
+        </div>
+        <a href={`tel:${contacto.whatsapp.replace(/\s/g, '')}`} class="text-sm underline-offset-4 hover:underline">
+          O llámanos
+        </a>
+      </div>
+    </footer>
+  </main>
+
+  <Configurador />
+
+  <noscript>
+    <div class="mx-auto max-w-2xl px-4 pb-10">
+      <p class="rounded-[var(--radius-card)] border border-kitsune-coral/40 bg-kitsune-coral/10 p-4 text-sm text-kitsune-cream">
+        JavaScript está desactivado, así que no se puede armar el pedido aquí. La carta de
+        arriba está completa: los precios son los de la carta. Escríbenos por WhatsApp al
+        {contacto.whatsapp} y te asesoramos.
+      </p>
+    </div>
+  </noscript>
+</Layout>
+
+<script>
+  // Un solo punto de entrada para los DOS scripts del sitio, empaquetado por
+  // Astro. `pedido.ts` no calcula nada: usa `lib/cart.ts`. `escena.ts` solo
+  // mueve cosas decorativas y se apaga solo. Los dos son independientes: si
+  // uno falla, el otro sigue, y la carta — que es HTML — no depende de ninguno.
+  import '../scripts/pedido.ts';
+  import '../scripts/escena.ts';
+</script>
