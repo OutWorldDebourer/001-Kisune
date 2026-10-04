@@ -16,6 +16,7 @@ npm run dev
 
 ```sh
 cd site
+node node_modules/astro/bin/astro.mjs sync
 node --test src/lib/cart.test.ts src/lib/estado.test.ts
 node node_modules/typescript/bin/tsc --noEmit
 npm run build
